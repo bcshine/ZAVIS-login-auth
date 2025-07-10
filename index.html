@@ -427,6 +427,26 @@
         // 인증 상태 확인 시작을 콘솔에 출력 (디버깅 용도)
         console.log('인증 상태 확인 시작');
         
+        // 0. URL에서 인증 토큰 확인 (이메일 인증 직후)
+        const urlParams = new URLSearchParams(window.location.search);
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        
+        // 인증 관련 파라미터가 있는지 확인
+        const hasAuthParams = urlParams.has('access_token') || 
+                             hashParams.has('access_token') || 
+                             urlParams.has('error') || 
+                             hashParams.has('error');
+        
+        if (hasAuthParams) {
+          console.log('URL에 인증 파라미터 발견 - Supabase 자동 처리 대기');
+          
+          // URL 파라미터 정리 (보안 및 깔끔한 URL 유지)
+          window.history.replaceState({}, document.title, window.location.pathname);
+          
+          // Supabase가 자동으로 세션을 처리할 시간을 줌
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        
         // 1. 로컬 스토리지에서 사용자 정보 확인
         // 빠른 로딩을 위해 로컬 스토리지에 저장된 사용자 정보를 먼저 확인
         const savedUserInfo = localStorage.getItem('zavis-user-info');
@@ -461,92 +481,111 @@
           return;
         }
         
-        // 수파베이스 클라이언트 준비 완료를 콘솔에 출력
-        console.log('수파베이스 클라이언트 준비 완료');
+        // 3. 수파베이스에서 현재 로그인된 사용자 정보 확인
+        // 로컬 스토리지에 정보가 없거나 수파베이스 세션 확인이 필요한 경우
+        console.log('수파베이스 세션 확인...');
         
-        // 3. 세션 확인
-        // 수파베이스 Auth 서비스에서 현재 유효한 세션 정보 가져오기
-        const { data: { session }, error } = await supabaseClient.auth.getSession();
+        // getSession 함수로 현재 세션 정보 가져오기
+        const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
         
-        // 세션 확인 중 오류 발생 시 로그인 버튼 표시
-        if (error) {
-          console.error('세션 확인 오류:', error);
-          showAuthButtons();
-          return;
+        // 세션 오류 발생 시 로그 출력
+        if (sessionError) {
+          console.error('세션 확인 오류:', sessionError);
+          showAuthButtons();  // 로그인 버튼 표시
+          return;            // 함수 종료
         }
         
-        // 유효한 세션이 없는 경우 로그인 버튼 표시
-        if (!session?.user) {
-          console.log('유효한 세션 없음');
-          showAuthButtons();
-          return;
-        }
-        
-        // 유효한 세션 확인을 콘솔에 출력
-        console.log('유효한 세션 확인:', session.user.email);
-        
-        // 4. 프로필 정보 가져오기
-        // Auth 테이블에는 기본 정보만 있으므로 profiles 테이블에서 상세 정보 가져오기
-        const { data: profile, error: profileError } = await supabaseClient
-          .from('profiles')                    // profiles 테이블 선택
-          .select('*')                        // 모든 컬럼 선택
-          .eq('user_id', session.user.id)     // 현재 사용자의 프로필만 선택
-          .single();                          // 단일 레코드 반환
-        
-        // 프로필 정보 가져오기 중 오류 발생 시 로그인 버튼 표시
-        if (profileError) {
-          console.error('프로필 정보 가져오기 오류:', profileError);
-          showAuthButtons();
-          return;
-        }
-        
-        // 프로필 정보가 없는 경우 자동으로 생성
-        if (!profile) {
-          console.log('프로필 정보 없음, 자동 생성 시도...');
-          try {
+        // 세션이 있고 사용자 정보가 있는 경우
+        if (sessionData.session && sessionData.session.user) {
+          console.log('세션 발견:', sessionData.session.user.email);
+          
+          // 프로필 정보 가져오기
+          console.log('프로필 정보 가져오기...');
+          const { data: profileData, error: profileError } = await supabaseClient
+            .from('profiles')                               // profiles 테이블에서
+            .select('*')                                   // 모든 컬럼 선택
+            .eq('user_id', sessionData.session.user.id)    // 현재 사용자의 프로필
+            .single();                                     // 단일 레코드 반환
+          
+          if (profileData) {
+            // 프로필 정보가 있는 경우
+            console.log('프로필 정보 로드 성공:', profileData.name);
+            const userInfo = {
+              name: profileData.name,
+              email: profileData.email,
+              visit_count: profileData.visit_count || 1
+            };
+            
+            // 로컬 스토리지에 저장 (다음 방문 시 빠른 로딩)
+            localStorage.setItem('zavis-user-info', JSON.stringify(userInfo));
+            
+            // 사용자 정보 표시
+            showUserInfo(userInfo);
+            
+            // 이메일 인증 직후인 경우 환영 메시지 표시
+            if (hasAuthParams) {
+              alert(`🎉 이메일 인증이 완료되었습니다!\n\n환영합니다, ${userInfo.name}님!\nZAVIS와 함께 성공적인 비즈니스를 시작해보세요.`);
+            }
+          } else if (!profileError || profileError.code === 'PGRST116') {
+            // 프로필이 없는 경우 생성 시도
+            console.log('프로필 없음, 생성 시도...');
+            
+            // 사용자 메타데이터에서 정보 가져오기
+            const user = sessionData.session.user;
+            const metadata = user.user_metadata || {};
+            
+            // 새 프로필 생성
             const { data: newProfile, error: createError } = await supabaseClient
               .from('profiles')
               .insert([{
-                user_id: session.user.id,
-                name: session.user.email.split('@')[0], // 이메일 첫 부분을 이름으로 사용
-                email: session.user.email,
-                visit_count: 1
+                user_id: user.id,
+                name: metadata.name || user.email.split('@')[0] || '사용자',
+                email: user.email,
+                phone: metadata.phone || '',
+                visit_count: 1,
+                created_at: new Date().toISOString()
               }])
               .select()
               .single();
             
-            if (createError) {
-              console.error('프로필 자동 생성 실패:', createError);
-              showAuthButtons();
-              return;
+            if (newProfile) {
+              console.log('프로필 생성 성공');
+              const userInfo = {
+                name: newProfile.name,
+                email: newProfile.email,
+                visit_count: 1
+              };
+              
+              // 로컬 스토리지에 저장
+              localStorage.setItem('zavis-user-info', JSON.stringify(userInfo));
+              
+              // 사용자 정보 표시
+              showUserInfo(userInfo);
+              
+              // 환영 메시지
+              if (hasAuthParams) {
+                alert(`🎉 이메일 인증이 완료되었습니다!\n\n환영합니다, ${userInfo.name}님!\nZAVIS와 함께 성공적인 비즈니스를 시작해보세요.`);
+              }
+            } else {
+              console.error('프로필 생성 실패:', createError);
+              // 프로필 생성 실패해도 기본 정보로 표시
+              const userInfo = {
+                name: user.email.split('@')[0],
+                email: user.email,
+                visit_count: 1
+              };
+              showUserInfo(userInfo);
             }
-            
-            console.log('프로필 자동 생성 완료:', newProfile);
-            profile = newProfile; // 생성된 프로필 사용
-          } catch (error) {
-            console.error('프로필 자동 생성 중 오류:', error);
-            showAuthButtons();
-            return;
+          } else {
+            // 다른 프로필 오류
+            console.error('프로필 조회 오류:', profileError);
+            showAuthButtons();  // 로그인 버튼 표시
           }
+        } else {
+          // 세션이 없는 경우 로그인 버튼 표시
+          console.log('로그인된 세션 없음');
+          showAuthButtons();
         }
-        
-        // 5. 로컬 스토리지에 사용자 정보 저장
-        // 다음 방문 시 빠른 로딩을 위해 사용자 정보를 브라우저에 저장
-        try {
-          localStorage.setItem('zavis-user-info', JSON.stringify({
-            name: profile.name,              // 사용자 이름
-            email: profile.email,            // 이메일 주소
-            visit_count: profile.visit_count // 방문횟수
-          }));
-          console.log('사용자 정보 로컬 저장 완료');
-        } catch (storageError) {
-          // 로컬 스토리지 저장 실패 시 콘솔에 오류 출력
-          console.error('로컬 스토리지 저장 오류:', storageError);
-        }
-        
-        // 프로필 정보 로드 완료를 콘솔에 출력
-        console.log('프로필 정보 로드 완료:', profile.name);
-        showUserInfo(profile);  // 사용자 정보 표시
         
       } catch (error) {
         // 인증 확인 과정에서 발생한 오류를 콘솔에 출력

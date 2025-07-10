@@ -22,8 +22,8 @@ async function signUp(email, password, name, phone) {
       email: email,     // 사용자 이메일 (로그인 ID로 사용)
       password: password, // 사용자 비밀번호 (암호화되어 저장)
       options: {
-        // 이메일 인증 후 리디렉션될 URL 설정 (GitHub Pages 호환)
-        emailRedirectTo: `https://bcshine.github.io/ZAVIS-login-auth/auth-confirm.html`,
+        // 이메일 인증 후 리디렉션될 URL 설정 (Supabase 자동 처리)
+        emailRedirectTo: `https://bcshine.github.io/ZAVIS-login-auth/`,
         // 사용자 메타데이터 설정 (프로필 생성 시 활용)
         data: {
           name: name,
