@@ -20,7 +20,16 @@ async function signUp(email, password, name, phone) {
     // signUp 함수는 이메일과 비밀번호로 새로운 사용자 계정을 생성
     const { data: authData, error: authError } = await supabaseClient.auth.signUp({
       email: email,     // 사용자 이메일 (로그인 ID로 사용)
-      password: password // 사용자 비밀번호 (암호화되어 저장)
+      password: password, // 사용자 비밀번호 (암호화되어 저장)
+      options: {
+        // 이메일 인증 후 리디렉션될 URL 설정
+        emailRedirectTo: `${window.location.origin}/auth-confirm.html`,
+        // 사용자 메타데이터 설정 (프로필 생성 시 활용)
+        data: {
+          name: name,
+          phone: phone
+        }
+      }
     });
     
     // 인증 계정 생성 중 오류가 발생했는지 확인
