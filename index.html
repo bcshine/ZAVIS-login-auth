@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- ===== 기본 문서 설정 ===== -->
+  <!-- 문서 문자 인코딩 설정 (UTF-8로 한글 지원) -->
+  <meta charset="UTF-8">
+  <!-- 반응형 웹 디자인을 위한 뷰포트 설정 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- 리퍼러 정책 설정 - 외부 사이트로 이동할 때 URL 정보 전송 방식 -->
+  <meta name="referrer" content="no-referrer-when-downgrade">
+  <!-- 보안 정책 설정 - HTTP 요청을 HTTPS로 자동 업그레이드 -->
+  <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+  <!-- 캐시 제어 설정 - 브라우저 캐시 사용 안 함 (개발용) -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <!-- 기본 URL 경로 설정 -->
+  <base href="./">
+  <!-- 브라우저 탭에 표시될 페이지 제목 -->
+  <title>ZAVIS</title>
+  <!-- 버전 정보 주석 (배포 버전 추적용) -->
+  <!-- Updated for docs folder v2.1 -->
+  
+  <!-- ===== PWA (Progressive Web App) 설정 ===== -->
+  <!-- PWA 매니페스트 파일 연결 (앱처럼 사용할 수 있도록 설정) -->
+  <link rel="manifest" href="manifest.json?v=2">
+  
+  <!-- PWA 메타 태그들 -->
+  <!-- 앱 테마 색상 설정 (상태바 색상 등에 사용) -->
+  <meta name="theme-color" content="#f5ecd7">
+  <!-- iOS Safari에서 웹앱 모드 활성화 -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <!-- iOS Safari 상태바 스타일 설정 -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <!-- iOS 홈화면에 추가될 때 표시되는 앱 이름 -->
+  <meta name="apple-mobile-web-app-title" content="ZAVIS">
+  <!-- iOS 홈화면 아이콘 설정 -->
+  <link rel="apple-touch-icon" href="mp1.png?v=2">
+  
+  <!-- ===== 외부 리소스 로드 ===== -->
+  <!-- 넥슨고딕 웹폰트 CDN 로드 - 일관된 한글 폰트 적용 -->
+  <link href="https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2107@1.1/NEXON_Gothic.css" rel="stylesheet" type="text/css" />
+  
+  <!-- 수파베이스 라이브러리 로드 - 데이터베이스 연결 및 인증 기능 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    html, body {
+      height: 100%;
+      overflow-x: hidden;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'NEXON Gothic', sans-serif;
+      background: #f5ecd7; /* 베이지 */
+      color: #222;
+      min-height: 100vh;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+    }
+    .container {
+      width: 100%;
+      max-width: 400px;
+      margin: 0 auto;
+      padding: 20px 20px 0 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 80vh;
+    }
+    .title {
+      font-size: 3.5rem;
+      font-weight: bold;
+      margin-bottom: 24px;
+      letter-spacing: 3px;
+      text-align: center;
+      word-break: keep-all;
+    }
+    .compass {
+      width: 180px;
+      max-width: 70vw;
+      margin-bottom: 28px;
+      display: block;
+    }
+    .desc {
+      font-size: 1.1rem;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 32px;
+      line-height: 1.7;
+      letter-spacing: -1px;
+      width: 100%;
+      word-break: keep-all;
+    }
+    .desc span {
+      display: block;
+      margin-bottom: 4px;
+    }
+    .ask-btn {
+      width: 50%;
+      max-width: 280px;
+      min-width: 200px;
+      padding: 16px 12px;
+      font-size: 1.1rem;
+      font-family: inherit;
+      font-weight: bold;
+      background: #fffbe9;
+      border: 2px solid #e0cfa9;
+      border-radius: 12px;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      transition: background 0.2s, border 0.2s;
+      text-align: center;
+      word-break: keep-all;
+    }
+    .ask-btn:hover {
+      background: #f7efd2;
+      border-color: #d6b98c;
+    }
+    
+    .auth-section {
+      margin-top: 32px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    .auth-buttons {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+      max-width: 280px;
+      justify-content: center;
+    }
+    
+    .auth-btn {
+      flex: 1;
+      padding: 14px 12px;
+      font-size: 1rem;
+      font-family: inherit;
+      font-weight: bold;
+      background: #fffbe9;
+      border: 2px solid #e0cfa9;
+      border-radius: 12px;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      transition: background 0.2s, border 0.2s;
+      text-align: center;
+      text-decoration: none;
+      color: #222;
+      display: inline-block;
+    }
+    
+    .auth-btn:hover {
+      background: #f7efd2;
+      border-color: #d6b98c;
+    }
+    
+    .user-info {
+      text-align: center;
+      padding: 16px;
+      background: rgba(255,255,255,0.3);
+      border-radius: 12px;
+      margin-top: 16px;
+    }
+    
+    .user-name {
+      font-size: 1.1rem;
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: #333;
+    }
+    
+    .user-stats {
+      font-size: 0.9rem;
+      color: #666;
+      margin-bottom: 12px;
+    }
+    
+    .logout-btn {
+      padding: 8px 16px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      font-weight: bold;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+      color: #666;
+    }
+    
+    .logout-btn:hover {
+      background: #f5f5f5;
+    }
+    @media (max-width: 500px) {
+      body {
+        padding: 0;
+        min-height: 100vh;
+        height: 100vh;
+        justify-content: center;
+        overflow-x: hidden;
+      }
+      .container {
+        padding: 16px 16px 0 16px;
+        min-height: 80vh;
+        justify-content: center;
+        max-width: 95vw;
+      }
+      .title { 
+        font-size: 2.5rem; 
+        letter-spacing: 1px;
+        margin-bottom: 20px;
+      }
+      .compass { 
+        width: 120px; 
+        max-width: 60vw; 
+      }
+      .desc { 
+        font-size: 1rem; 
+        letter-spacing: 0px;
+      }
+      .ask-btn { 
+        font-size: 1rem; 
+        padding: 12px 8px;
+        width: 70%;
+        min-width: 180px;
+        max-width: 250px;
+      }
+      
+      .auth-buttons {
+        flex-direction: column;
+        gap: 12px;
+        max-width: 250px;
+      }
+      
+      .auth-btn {
+        width: 100%;
+        padding: 12px;
+        font-size: 0.9rem;
+      }
+    }
+    @media (max-width: 350px) {
+      .title {
+        font-size: 2rem;
+        letter-spacing: 0px;
+      }
+      .ask-btn {
+        width: 80%;
+        min-width: 160px;
+        font-size: 0.9rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="title">ZAVIS</div>
+    <img src="mp1.png" alt="나침반" class="compass" />
+    <div class="desc">
+      <span>사장님의 수퍼앱</span>
+      <span>통찰적인 조언자</span>
+      <span>의사결정 나침반</span>
+    </div>
+         <a href="https://chat.openai.com/g/g-684f6e6b9ed48191bb537979053a36cc-naeireumeun-zavis-sajangnimyi-supeoaeb" 
+        target="_blank" 
+        rel="noopener noreferrer"
+        class="ask-btn" 
+        style="text-decoration: none; display: inline-block; color: black;">질문주세요, 'Click!'</a>
+    
+    <!-- 로그인/회원가입 섹션 -->
+    <div class="auth-section">
+      <!-- 로딩 상태 표시 -->
+      <div id="authLoading" style="display: block; text-align: center; padding: 20px;">
+        <div style="font-size: 0.9rem; color: #666;">로딩 중...</div>
+      </div>
+      
+      <!-- 로그인되지 않은 상태에서 보여질 버튼들 -->
+      <div id="authButtons" class="auth-buttons" style="display: none;">
+        <a href="login.html" class="auth-btn">로그인</a>
+        <a href="signup.html" class="auth-btn">회원가입</a>
+      </div>
+      
+      <!-- 로그인된 상태에서 보여질 사용자 정보 -->
+      <div id="userInfo" class="user-info" style="display: none;">
+        <div class="user-name" id="userName">사용자님</div>
+        <div class="user-stats" id="userStats">방문횟수: 0회</div>
+        <button class="logout-btn" id="logoutBtn">로그아웃</button>
+      </div>
+    </div>
+    
+    </div>
+
+  <!-- ===== 외부 스크립트 파일 로드 ===== -->
+  <!-- 수파베이스 설정 및 인증 스크립트 -->
+  <!-- 수파베이스 설정 파일 로드 -->
+  <script src="config.js"></script>
+  <!-- 인증 관련 함수 파일 로드 -->
+  <script src="auth.js"></script>
+  
+  <!-- ===== 서비스 워커 등록 스크립트 ===== -->
+  <script>
+    // ============================================================================
+    // PWA 서비스 워커 관리 함수들
+    // ============================================================================
+    
+    // 캐시 클리어 함수 (필요시에만 사용)
+    // 브라우저에 저장된 모든 캐시를 삭제하여 최신 버전으로 업데이트
+    async function clearAllCaches() {
+      // 브라우저가 캐시 API를 지원하는지 확인
+      if ('caches' in window) {
+        try {
+          // 모든 캐시 이름 가져오기
+          const cacheNames = await caches.keys();
+          // 각 캐시를 삭제 (병렬 처리)
+          await Promise.all(
+            cacheNames.map(cacheName => {
+              console.log('Deleting cache:', cacheName);
+              return caches.delete(cacheName);  // 캐시 삭제
+            })
+          );
+          console.log('All caches cleared successfully');
+        } catch (error) {
+          console.error('Cache clearing failed:', error);
+        }
+      }
+    }
+
+    // Service Worker 안정적 등록 함수
+    // 깜빡거림을 방지하기 위해 재등록 로직을 최소화
+    async function registerServiceWorker() {
+      // 브라우저가 서비스 워커를 지원하는지 확인
+      if ('serviceWorker' in navigator) {
+        try {
+          // 기존 등록 확인
+          const existingRegistration = await navigator.serviceWorker.getRegistration();
+          
+          if (existingRegistration) {
+            console.log('Service Worker already registered');
+            return; // 이미 등록되어 있으면 추가 작업 안 함
+          }
+          
+          // 서비스 워커 등록 (깜빡거림 방지를 위해 간단하게)
+          const registration = await navigator.serviceWorker.register('./sw.js', {
+            scope: './'
+          });
+          
+          console.log('Service Worker registered successfully');
+          
+          // 업데이트가 있는 경우에만 처리
+          registration.addEventListener('updatefound', () => {
+            console.log('Service Worker update found');
+            // 새 버전이 설치되면 사용자에게 알림 (자동 새로고침 하지 않음)
+            if (registration.installing) {
+              registration.installing.addEventListener('statechange', (e) => {
+                if (e.target.state === 'activated') {
+                  console.log('New Service Worker activated');
+                  // 사용자에게 선택권 제공 (강제 새로고침 안 함)
+                  // alert('새 버전이 업데이트되었습니다. 페이지를 새로고침하시겠습니까?');
+                }
+              });
+            }
+          });
+          
+        } catch (error) {
+          // 서비스 워커 등록 실패 시 오류 출력
+          console.log('Service Worker registration failed:', error);
+        }
+      }
+    }
+
+    // ============================================================================
+    // 페이지 초기화 및 이벤트 리스너
+    // ============================================================================
+    
+    // 페이지 로드시 실행
+    // 윈도우 객체의 load 이벤트는 모든 리소스가 로드 완료된 후에 발생
+    window.addEventListener('load', () => {
+      // 버전 체크용 로컬스토리지
+      // 앱 버전을 확인하여 필요시 업데이트 (깜빡거림 방지)
+      const currentVersion = '2.1';                                    // 현재 앱 버전
+      const storedVersion = localStorage.getItem('zavis-version');     // 저장된 버전 가져오기
+      
+      // 버전이 다른 경우에만 버전 업데이트 (강제 새로고침 안 함)
+      if (storedVersion !== currentVersion) {
+        console.log('Version updated to:', currentVersion);
+        localStorage.setItem('zavis-version', currentVersion);         // 새 버전 저장
+      }
+      
+      // 서비스 워커 안정적 등록 (깜빡거림 방지)
+      registerServiceWorker();
+      
+      // 안정적인 인증 상태 확인 (로그인 문제 해결)
+      // 500ms 후에 인증 확인 함수 실행 (초기화 시간 확보하되 빠르게)
+      setTimeout(stableAuthCheck, 500);
+    });
+    
+    // ============================================================================
+    // 안정적인 인증 확인 시스템 (로그인 문제 해결)
+    // ============================================================================
+    
+    // 중복 인증 확인 방지용 플래그
+    let authChecked = false;
+    
+    // 안정적인 인증 확인 함수
+    // 로컬 스토리지와 수파베이스 세션을 순차적으로 확인하여 로그인 상태 결정
+    async function stableAuthCheck() {
+      // 이미 인증 확인이 완료된 경우 중복 실행 방지
+      if (authChecked) {
+        return;
+      }
+      
+      // 인증 확인 플래그 설정
+      authChecked = true;
+      
+      try {
+        // 인증 상태 확인 시작을 콘솔에 출력 (디버깅 용도)
+        console.log('인증 상태 확인 시작');
+        
+        // 1. 로컬 스토리지에서 사용자 정보 확인
+        // 빠른 로딩을 위해 로컬 스토리지에 저장된 사용자 정보를 먼저 확인
+        const savedUserInfo = localStorage.getItem('zavis-user-info');
+        
+        if (savedUserInfo) {
+          try {
+            // 저장된 사용자 정보를 JSON으로 파싱
+            const userInfo = JSON.parse(savedUserInfo);
+            console.log('로컬 사용자 정보 발견:', userInfo.name);
+            showUserInfo(userInfo);  // 사용자 정보 표시
+            return;                  // 로컬 정보가 있으면 즉시 반환
+          } catch (e) {
+            // JSON 파싱 오류 발생 시 손상된 데이터 제거
+            console.log('로컬 사용자 정보 파싱 오류');
+            localStorage.removeItem('zavis-user-info');
+          }
+        }
+        
+        // 2. 수파베이스 클라이언트 대기 (최적화된 대기 시간)
+        // config.js에서 초기화되는 수파베이스 클라이언트가 준비될 때까지 대기
+        let retryCount = 0;
+        while (!supabaseClient && retryCount < 5) {
+          console.log('수파베이스 클라이언트 대기 중...');
+          await new Promise(resolve => setTimeout(resolve, 100));  // 100ms 대기로 단축
+          retryCount++;
+        }
+        
+        // 수파베이스 클라이언트 초기화 실패 시 로그인 버튼 표시
+        if (!supabaseClient) {
+          console.log('수파베이스 클라이언트 초기화 실패');
+          showAuthButtons();
+          return;
+        }
+        
+        // 수파베이스 클라이언트 준비 완료를 콘솔에 출력
+        console.log('수파베이스 클라이언트 준비 완료');
+        
+        // 3. 세션 확인
+        // 수파베이스 Auth 서비스에서 현재 유효한 세션 정보 가져오기
+        const { data: { session }, error } = await supabaseClient.auth.getSession();
+        
+        // 세션 확인 중 오류 발생 시 로그인 버튼 표시
+        if (error) {
+          console.error('세션 확인 오류:', error);
+          showAuthButtons();
+          return;
+        }
+        
+        // 유효한 세션이 없는 경우 로그인 버튼 표시
+        if (!session?.user) {
+          console.log('유효한 세션 없음');
+          showAuthButtons();
+          return;
+        }
+        
+        // 유효한 세션 확인을 콘솔에 출력
+        console.log('유효한 세션 확인:', session.user.email);
+        
+        // 4. 프로필 정보 가져오기
+        // Auth 테이블에는 기본 정보만 있으므로 profiles 테이블에서 상세 정보 가져오기
+        const { data: profile, error: profileError } = await supabaseClient
+          .from('profiles')                    // profiles 테이블 선택
+          .select('*')                        // 모든 컬럼 선택
+          .eq('user_id', session.user.id)     // 현재 사용자의 프로필만 선택
+          .single();                          // 단일 레코드 반환
+        
+        // 프로필 정보 가져오기 중 오류 발생 시 로그인 버튼 표시
+        if (profileError) {
+          console.error('프로필 정보 가져오기 오류:', profileError);
+          showAuthButtons();
+          return;
+        }
+        
+        // 프로필 정보가 없는 경우 로그인 버튼 표시
+        if (!profile) {
+          console.log('프로필 정보 없음');
+          showAuthButtons();
+          return;
+        }
+        
+        // 5. 로컬 스토리지에 사용자 정보 저장
+        // 다음 방문 시 빠른 로딩을 위해 사용자 정보를 브라우저에 저장
+        try {
+          localStorage.setItem('zavis-user-info', JSON.stringify({
+            name: profile.name,              // 사용자 이름
+            email: profile.email,            // 이메일 주소
+            visit_count: profile.visit_count // 방문횟수
+          }));
+          console.log('사용자 정보 로컬 저장 완료');
+        } catch (storageError) {
+          // 로컬 스토리지 저장 실패 시 콘솔에 오류 출력
+          console.error('로컬 스토리지 저장 오류:', storageError);
+        }
+        
+        // 프로필 정보 로드 완료를 콘솔에 출력
+        console.log('프로필 정보 로드 완료:', profile.name);
+        showUserInfo(profile);  // 사용자 정보 표시
+        
+      } catch (error) {
+        // 인증 확인 과정에서 발생한 오류를 콘솔에 출력
+        console.error('인증 확인 오류:', error);
+        showAuthButtons();  // 오류 발생 시 로그인 버튼 표시
+      }
+    }
+    
+    // ============================================================================
+    // UI 업데이트 함수들
+    // ============================================================================
+    
+    // 로그인 버튼 표시 함수
+    // 로그인되지 않은 상태에서 로그인/회원가입 버튼을 표시
+    function showAuthButtons() {
+      // 각 UI 요소를 ID로 선택
+      const authLoading = document.getElementById('authLoading');   // 로딩 표시 요소
+      const authButtons = document.getElementById('authButtons');   // 로그인/회원가입 버튼 그룹
+      const userInfo = document.getElementById('userInfo');         // 사용자 정보 표시 요소
+      
+      // 로딩 화면 숨기기
+      if (authLoading) authLoading.style.display = 'none';
+      // 로그인/회원가입 버튼 표시
+      if (authButtons) authButtons.style.display = 'flex';
+      // 사용자 정보 영역 숨기기
+      if (userInfo) userInfo.style.display = 'none';
+      
+      // 로그인 버튼 표시 완료를 콘솔에 출력 (디버깅 용도)
+      console.log('로그인 버튼 표시');
+    }
+    
+    // 사용자 정보 표시 함수
+    // 로그인된 상태에서 사용자 이름과 방문횟수를 표시
+    function showUserInfo(profile) {
+      // 각 UI 요소를 ID로 선택
+      const authLoading = document.getElementById('authLoading');   // 로딩 표시 요소
+      const authButtons = document.getElementById('authButtons');   // 로그인/회원가입 버튼 그룹
+      const userInfo = document.getElementById('userInfo');         // 사용자 정보 표시 요소
+      const userName = document.getElementById('userName');         // 사용자 이름 표시 요소
+      const userStats = document.getElementById('userStats');       // 방문횟수 표시 요소
+      
+      // 로딩 화면 숨기기
+      if (authLoading) authLoading.style.display = 'none';
+      // 로그인/회원가입 버튼 숨기기
+      if (authButtons) authButtons.style.display = 'none';
+      // 사용자 정보 영역 표시
+      if (userInfo) userInfo.style.display = 'block';
+      
+      // 사용자 이름 표시 (이름이 없으면 이메일 표시)
+      if (userName) userName.textContent = profile.name || profile.email;
+      // 방문횟수 표시 (없으면 0회로 표시)
+      if (userStats) userStats.textContent = `방문횟수: ${profile.visit_count || 0}회`;
+      
+      // 사용자 정보 표시 완료를 콘솔에 출력 (디버깅 용도)
+      console.log('사용자 정보 표시:', profile.name);
+    }
+    
+    // ============================================================================
+    // 로그아웃 버튼 이벤트 리스너
+    // ============================================================================
+    
+    // DOM 로드 완료 후 로그아웃 버튼 이벤트 리스너 등록
+    document.addEventListener('DOMContentLoaded', function() {
+      // 로그아웃 버튼 요소 선택
+      const logoutBtn = document.getElementById('logoutBtn');
+      if (logoutBtn) {
+        // 로그아웃 버튼 클릭 이벤트 리스너 등록
+        logoutBtn.addEventListener('click', async function() {
+          // 로그아웃 확인 대화상자 표시
+          if (confirm('정말 로그아웃하시겠습니까?')) {
+            try {
+              // 로컬 스토리지에서 사용자 정보 삭제
+              localStorage.removeItem('zavis-user-info');
+              
+              // auth.js의 signOut 함수 호출하여 로그아웃 실행
+              const result = await signOut();
+              
+              // UI 업데이트 (페이지 새로고침 대신 직접 업데이트)
+              showAuthButtons();                    // 로그인 버튼 표시
+              alert('로그아웃되었습니다.');          // 로그아웃 완료 알림
+              
+            } catch (error) {
+              // 로그아웃 처리 중 오류 발생 시 처리
+              console.error('로그아웃 처리 오류:', error);
+              // 오류 발생 시에도 UI 업데이트 (일관성 유지)
+              localStorage.removeItem('zavis-user-info');
+              showAuthButtons();
+            }
+          }
+        });
+      }
+    });
+    
+    // ============================================================================
+    // 추가 브라우저 최적화 설정
+    // ============================================================================
+    
+    // 필요시에만 캐시 제어 메타 태그 추가 (깜빡거림 방지)
+    // 개발 환경에서만 사용하고 운영 환경에서는 주석 처리
+    if (localStorage.getItem('zavis-dev-mode') === 'true') {
+      const meta = document.createElement('meta');                             // 새 메타 태그 생성
+      meta.httpEquiv = 'Cache-Control';                                       // HTTP 헤더 설정
+      meta.content = 'no-cache, no-store, must-revalidate, max-age=0';       // 캐시 사용 금지
+      document.head.appendChild(meta);                                        // 문서 헤드에 추가
+      console.log('개발 모드: 캐시 무효화 설정 적용');
+    }
+  </script>
+</body>
+</html> 

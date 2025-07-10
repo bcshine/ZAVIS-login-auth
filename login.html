@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- 문서 문자 인코딩 설정 (UTF-8로 한글 지원) -->
+  <meta charset="UTF-8">
+  <!-- 반응형 웹 디자인을 위한 뷰포트 설정 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- 브라우저 탭에 표시될 페이지 제목 -->
+  <title>ZAVIS - 로그인</title>
+  
+  <!-- 넥슨고딕 웹폰트 로드 - 일관된 한글 폰트 적용 -->
+  <link href="https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2107@1.1/NEXON_Gothic.css" rel="stylesheet" type="text/css" />
+  
+  <!-- 수파베이스 라이브러리 로드 - 데이터베이스 연결 및 인증 기능 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <style>
+    /* ===== 전체 페이지 스타일 설정 ===== */
+    /* 모든 요소에 박스 사이징 적용 - 패딩과 보더가 요소의 크기에 포함됨 */
+    * {
+      box-sizing: border-box;
+    }
+    
+    /* HTML과 BODY 요소의 기본 스타일 설정 */
+    html, body {
+      height: 100%;                              /* 전체 높이를 100%로 설정 */
+      margin: 0;                                 /* 기본 마진 제거 */
+      padding: 0;                                /* 기본 패딩 제거 */
+      font-family: 'NEXON Gothic', sans-serif;   /* 넥슨고딕 폰트 적용 */
+      background: #f5ecd7;                       /* 베이지 색상 배경 */
+      color: #222;                               /* 어두운 회색 텍스트 색상 */
+    }
+    
+    .container {
+      width: 100%;
+      max-width: 400px;
+      margin: 0 auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    
+    .title {
+      font-size: 2.5rem;
+      font-weight: bold;
+      margin-bottom: 8px;
+      text-align: center;
+      color: #222;
+    }
+    
+    .subtitle {
+      font-size: 1.1rem;
+      margin-bottom: 32px;
+      text-align: center;
+      color: #666;
+    }
+    
+    .form-group {
+      width: 100%;
+      margin-bottom: 20px;
+    }
+    
+    .form-label {
+      display: block;
+      font-size: 1rem;
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: #333;
+    }
+    
+    .form-input {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 1rem;
+      font-family: inherit;
+      border: 2px solid #e0cfa9;
+      border-radius: 12px;
+      background: #fffbe9;
+      color: #222;
+      transition: border-color 0.2s, background-color 0.2s;
+    }
+    
+    .form-input:focus {
+      outline: none;
+      border-color: #d6b98c;
+      background: #fff;
+    }
+    
+    .form-input::placeholder {
+      color: #999;
+    }
+    
+    .login-btn {
+      width: 100%;
+      padding: 16px;
+      font-size: 1.1rem;
+      font-family: inherit;
+      font-weight: bold;
+      background: #fffbe9;
+      border: 2px solid #e0cfa9;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.2s, border 0.2s;
+      margin-bottom: 20px;
+    }
+    
+    .login-btn:hover {
+      background: #f7efd2;
+      border-color: #d6b98c;
+    }
+    
+    .login-btn:disabled {
+      background: #f0f0f0;
+      border-color: #ddd;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    
+    .links {
+      text-align: center;
+      margin-top: 20px;
+    }
+    
+    .link {
+      display: inline-block;
+      font-size: 1rem;
+      color: #666;
+      text-decoration: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      transition: background-color 0.2s;
+      margin: 0 8px;
+    }
+    
+    .link:hover {
+      background: rgba(0,0,0,0.05);
+    }
+    
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    
+    @media (max-width: 500px) {
+      .container {
+        padding: 16px;
+      }
+      
+      .title {
+        font-size: 2rem;
+      }
+      
+      .form-input {
+        padding: 12px 14px;
+      }
+      
+      .login-btn {
+        padding: 14px;
+        font-size: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="title">ZAVIS</h1>
+    <p class="subtitle">로그인</p>
+    
+    <form id="loginForm" class="form">
+      <div class="form-group">
+        <label class="form-label" for="email">이메일</label>
+        <input 
+          type="email" 
+          id="email" 
+          name="email" 
+          class="form-input" 
+          placeholder="이메일을 입력하세요" 
+          required>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label" for="password">비밀번호</label>
+        <input 
+          type="password" 
+          id="password" 
+          name="password" 
+          class="form-input" 
+          placeholder="비밀번호를 입력하세요" 
+          required>
+      </div>
+      
+      <button type="submit" class="login-btn" id="loginBtn">
+        로그인
+      </button>
+    </form>
+    
+    <div class="links">
+      <a href="signup.html" class="link">회원가입</a>
+      <a href="index.html" class="link">← 메인으로</a>
+    </div>
+  </div>
+
+  <!-- ===== 외부 스크립트 파일 로드 ===== -->
+  <!-- 수파베이스 설정 파일 로드 -->
+  <script src="config.js"></script>
+  <!-- 인증 관련 함수 파일 로드 -->
+  <script src="auth.js"></script>
+  
+  <script>
+    // ============================================================================
+    // 로그인 폼 처리 및 페이지 초기화 스크립트
+    // ============================================================================
+    
+    // 로그인 폼 제출 이벤트 처리
+    // 사용자가 로그인 버튼을 클릭했을 때 실행되는 함수
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+      // 폼의 기본 제출 동작 방지 (페이지 새로고침 방지)
+      e.preventDefault();
+      
+      // 로그인 폼 제출 시작을 콘솔에 출력 (디버깅 용도)
+      console.log('로그인 폼 제출됨');
+      
+      // 폼 데이터 가져오기
+      // 입력 필드에서 이메일과 비밀번호 값을 가져옴
+      const email = document.getElementById('email').value.trim();      // 이메일 (앞뒤 공백 제거)
+      const password = document.getElementById('password').value;       // 비밀번호
+      
+      // 입력된 이메일을 콘솔에 출력 (디버깅 용도)
+      console.log('입력된 이메일:', email);
+      
+      // 입력값 검증 - 이메일과 비밀번호가 모두 입력되었는지 확인
+      if (!email || !password) {
+        alert('이메일과 비밀번호를 모두 입력해주세요.');
+        return; // 검증 실패 시 함수 종료
+      }
+      
+      // 이메일 형식 검증 - 정규식을 사용하여 올바른 이메일 형식인지 확인
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailPattern.test(email)) {
+        alert('올바른 이메일 형식을 입력해주세요.');
+        return; // 검증 실패 시 함수 종료
+      }
+      
+      // 로딩 상태 표시
+      // 로그인 처리 중임을 사용자에게 시각적으로 표시
+      const container = document.querySelector('.container');  // 컨테이너 요소 선택
+      const loginBtn = document.getElementById('loginBtn');     // 로그인 버튼 요소 선택
+      
+      container.classList.add('loading');        // 로딩 CSS 클래스 추가
+      loginBtn.disabled = true;                   // 로그인 버튼 비활성화
+      loginBtn.textContent = '로그인 중...';       // 버튼 텍스트 변경
+      
+      try {
+        // signIn 함수 호출 시작을 콘솔에 출력 (디버깅 용도)
+        console.log('signIn 함수 호출...');
+        
+        // auth.js 파일의 signIn 함수 호출하여 로그인 시도
+        const result = await signIn(email, password);
+        
+        // 로그인 결과를 콘솔에 출력 (디버깅 용도)
+        console.log('로그인 결과:', result);
+        
+        // 로그인 성공 여부 확인
+        if (result.success) {
+          console.log('로그인 성공, 페이지 이동 중...');
+          // 성공 시 메인 페이지로 이동 (auth.js에서 처리)
+        } else {
+          console.log('로그인 실패:', result.error);
+          // 실패 시 오류 메시지는 auth.js에서 처리
+        }
+        
+      } catch (error) {
+        // 로그인 과정에서 예상치 못한 오류 발생 시 처리
+        console.error('로그인 폼 처리 오류:', error);
+        alert('로그인 중 예상치 못한 오류가 발생했습니다.\n\n페이지를 새로고침 후 다시 시도해주세요.');
+        
+      } finally {
+        // 로그인 시도 완료 후 로딩 상태 해제
+        // 성공/실패 여부와 관계없이 실행
+        container.classList.remove('loading');     // 로딩 CSS 클래스 제거
+        loginBtn.disabled = false;                  // 로그인 버튼 활성화
+        loginBtn.textContent = '로그인';             // 버튼 텍스트 원래대로 복원
+      }
+    });
+    
+    // ============================================================================
+    // 페이지 로드 시 초기화 처리
+    // ============================================================================
+    
+    // 페이지 로드 시 수파베이스 초기화 및 로그인 상태 확인
+    // DOM이 완전히 로드된 후에 실행
+    document.addEventListener('DOMContentLoaded', async function() {
+      // 페이지 로드 완료를 콘솔에 출력 (디버깅 용도)
+      console.log('페이지 로드 완료');
+      
+      // 수파베이스 클라이언트 초기화 대기
+      // config.js에서 초기화되는 수파베이스 클라이언트가 준비될 때까지 대기
+      let waitCount = 0;
+      while (!supabaseClient && waitCount < 10) {
+        console.log('수파베이스 클라이언트 초기화 대기...');
+        await new Promise(resolve => setTimeout(resolve, 200));  // 200ms 대기
+        waitCount++;
+      }
+      
+      // 수파베이스 클라이언트 초기화 실패 시 처리
+      if (!supabaseClient) {
+        console.error('수파베이스 클라이언트 초기화 실패');
+        alert('시스템 초기화에 실패했습니다. 페이지를 새로고침해주세요.');
+        return; // 함수 종료
+      }
+      
+      // 수파베이스 클라이언트 초기화 완료를 콘솔에 출력
+      console.log('수파베이스 클라이언트 초기화 완료');
+      
+      // 이미 로그인된 경우 메인 페이지로 리디렉션
+      // 로그인 페이지에 접근했지만 이미 로그인되어 있는 경우 처리
+      try {
+        // auth.js의 checkAuthStatus 함수로 현재 로그인 상태 확인
+        const userData = await checkAuthStatus();
+        if (userData && userData.user) {
+          // 이미 로그인되어 있는 경우 알림 표시 후 메인 페이지로 이동
+          alert('이미 로그인되어 있습니다.');
+          window.location.href = 'index.html';
+        }
+      } catch (error) {
+        // 로그인 상태 확인 중 오류 발생 시 처리
+        console.error('로그인 상태 확인 오류:', error);
+        // 오류가 발생해도 로그인 페이지는 그대로 표시
+      }
+    });
+  </script>
+</body>
+</html> 
