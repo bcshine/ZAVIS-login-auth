@@ -272,11 +272,12 @@
       <span>통찰적인 조언자</span>
       <span>의사결정 나침반</span>
     </div>
-         <a href="https://chat.openai.com/g/g-684f6e6b9ed48191bb537979053a36cc-naeireumeun-zavis-sajangnimyi-supeoaeb" 
-        target="_blank" 
-        rel="noopener noreferrer"
+    <!-- 질문주세요 버튼 - 로그인 확인 기능 포함 -->
+    <button 
+        id="askBtn" 
         class="ask-btn" 
-        style="text-decoration: none; display: inline-block; color: black;">질문주세요, 'Click!'</a>
+        onclick="handleAskButtonClick()"
+        style="color: black;">질문주세요, 'Click!'</button>
     
     <!-- 로그인/회원가입 섹션 -->
     <div class="auth-section">
@@ -393,7 +394,6 @@
       
       // 버전이 다른 경우에만 버전 업데이트 (강제 새로고침 안 함)
       if (storedVersion !== currentVersion) {
-        console.log('Version updated to:', currentVersion);
         localStorage.setItem('zavis-version', currentVersion);         // 새 버전 저장
       }
       
@@ -424,8 +424,7 @@
       authChecked = true;
       
       try {
-        // 인증 상태 확인 시작을 콘솔에 출력 (디버깅 용도)
-        console.log('인증 상태 확인 시작');
+        // 인증 상태 확인 시작
         
         // 0. URL에서 인증 토큰 확인 (이메일 인증 직후)
         const urlParams = new URLSearchParams(window.location.search);
@@ -438,8 +437,6 @@
                              hashParams.has('error');
         
         if (hasAuthParams) {
-          console.log('URL에 인증 파라미터 발견 - Supabase 자동 처리 대기');
-          
           // URL 파라미터 정리 (보안 및 깔끔한 URL 유지)
           window.history.replaceState({}, document.title, window.location.pathname);
           
@@ -455,12 +452,10 @@
           try {
             // 저장된 사용자 정보를 JSON으로 파싱
             const userInfo = JSON.parse(savedUserInfo);
-            console.log('로컬 사용자 정보 발견:', userInfo.name);
             showUserInfo(userInfo);  // 사용자 정보 표시
             return;                  // 로컬 정보가 있으면 즉시 반환
           } catch (e) {
             // JSON 파싱 오류 발생 시 손상된 데이터 제거
-            console.log('로컬 사용자 정보 파싱 오류');
             localStorage.removeItem('zavis-user-info');
           }
         }
@@ -469,21 +464,18 @@
         // config.js에서 초기화되는 수파베이스 클라이언트가 준비될 때까지 대기
         let retryCount = 0;
         while (!supabaseClient && retryCount < 5) {
-          console.log('수파베이스 클라이언트 대기 중...');
           await new Promise(resolve => setTimeout(resolve, 100));  // 100ms 대기로 단축
           retryCount++;
         }
         
         // 수파베이스 클라이언트 초기화 실패 시 로그인 버튼 표시
         if (!supabaseClient) {
-          console.log('수파베이스 클라이언트 초기화 실패');
           showAuthButtons();
           return;
         }
         
         // 3. 수파베이스에서 현재 로그인된 사용자 정보 확인
         // 로컬 스토리지에 정보가 없거나 수파베이스 세션 확인이 필요한 경우
-        console.log('수파베이스 세션 확인...');
         
         // getSession 함수로 현재 세션 정보 가져오기
         const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
@@ -497,10 +489,8 @@
         
         // 세션이 있고 사용자 정보가 있는 경우
         if (sessionData.session && sessionData.session.user) {
-          console.log('세션 발견:', sessionData.session.user.email);
           
           // 프로필 정보 가져오기
-          console.log('프로필 정보 가져오기...');
           const { data: profileData, error: profileError } = await supabaseClient
             .from('profiles')                               // profiles 테이블에서
             .select('*')                                   // 모든 컬럼 선택
@@ -509,7 +499,6 @@
           
           if (profileData) {
             // 프로필 정보가 있는 경우
-            console.log('프로필 정보 로드 성공:', profileData.name);
             const userInfo = {
               name: profileData.name,
               email: profileData.email,
@@ -528,7 +517,6 @@
             }
           } else if (!profileError || profileError.code === 'PGRST116') {
             // 프로필이 없는 경우 생성 시도
-            console.log('프로필 없음, 생성 시도...');
             
             // 사용자 메타데이터에서 정보 가져오기
             const user = sessionData.session.user;
@@ -549,7 +537,6 @@
               .single();
             
             if (newProfile) {
-              console.log('프로필 생성 성공');
               const userInfo = {
                 name: newProfile.name,
                 email: newProfile.email,
@@ -581,11 +568,10 @@
             console.error('프로필 조회 오류:', profileError);
             showAuthButtons();  // 로그인 버튼 표시
           }
-        } else {
-          // 세션이 없는 경우 로그인 버튼 표시
-          console.log('로그인된 세션 없음');
-          showAuthButtons();
-        }
+                  } else {
+            // 세션이 없는 경우 로그인 버튼 표시
+            showAuthButtons();
+          }
         
       } catch (error) {
         // 인증 확인 과정에서 발생한 오류를 콘솔에 출력
@@ -613,8 +599,7 @@
       // 사용자 정보 영역 숨기기
       if (userInfo) userInfo.style.display = 'none';
       
-      // 로그인 버튼 표시 완료를 콘솔에 출력 (디버깅 용도)
-      console.log('로그인 버튼 표시');
+      // 로그인 버튼 표시 완료
     }
     
     // 사용자 정보 표시 함수
@@ -639,8 +624,55 @@
       // 방문횟수 표시 (없으면 0회로 표시)
       if (userStats) userStats.textContent = `방문횟수: ${profile.visit_count || 0}회`;
       
-      // 사용자 정보 표시 완료를 콘솔에 출력 (디버깅 용도)
-      console.log('사용자 정보 표시:', profile.name);
+      // 사용자 정보 표시 완료
+    }
+    
+    // ============================================================================
+    // 질문주세요 버튼 로그인 확인 함수
+    // ============================================================================
+    
+    // 질문주세요 버튼 클릭 시 로그인 상태 확인 후 처리
+    async function handleAskButtonClick() {
+      try {
+        // 1. 로컬 스토리지에서 사용자 정보 확인 (빠른 확인)
+        const savedUserInfo = localStorage.getItem('zavis-user-info');
+        
+                 if (savedUserInfo) {
+           // 로컬에 사용자 정보가 있으면 로그인된 것으로 간주하고 서비스로 이동
+           window.open('https://chat.openai.com/g/g-684f6e6b9ed48191bb537979053a36cc-naeireumeun-zavis-sajangnimyi-supeoaeb', '_blank', 'noopener,noreferrer');
+           return;
+         }
+         
+         // 2. 수파베이스 세션 확인 (보조 확인)
+         if (supabaseClient) {
+           const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
+           
+           if (!sessionError && sessionData.session && sessionData.session.user) {
+             // 수파베이스 세션이 있으면 로그인된 것으로 간주하고 서비스로 이동
+             window.open('https://chat.openai.com/g/g-684f6e6b9ed48191bb537979053a36cc-naeireumeun-zavis-sajangnimyi-supeoaeb', '_blank', 'noopener,noreferrer');
+             return;
+           }
+         }
+        
+        // 3. 로그인되지 않은 경우 안내 메시지 표시
+        alert('🔐 로그인이 필요한 서비스입니다!\n\n아래 로그인 버튼을 클릭하여 먼저 로그인해주세요.\n\n로그인 후 ZAVIS의 모든 기능을 이용하실 수 있습니다.');
+        
+        // 로그인 버튼으로 시선 유도 (선택사항)
+        const authButtons = document.getElementById('authButtons');
+        if (authButtons && authButtons.style.display !== 'none') {
+          // 로그인 버튼이 보이는 경우 잠깐 강조 효과
+          authButtons.style.transform = 'scale(1.05)';
+          authButtons.style.transition = 'transform 0.3s ease';
+          setTimeout(() => {
+            authButtons.style.transform = 'scale(1)';
+          }, 300);
+        }
+        
+      } catch (error) {
+        // 오류 발생 시 기본 동작 (로그인 안내)
+        console.error('로그인 확인 중 오류:', error);
+        alert('🔐 로그인이 필요한 서비스입니다!\n\n먼저 로그인해주세요.');
+      }
     }
     
     // ============================================================================
@@ -690,7 +722,6 @@
       meta.httpEquiv = 'Cache-Control';                                       // HTTP 헤더 설정
       meta.content = 'no-cache, no-store, must-revalidate, max-age=0';       // 캐시 사용 금지
       document.head.appendChild(meta);                                        // 문서 헤드에 추가
-      console.log('개발 모드: 캐시 무효화 설정 적용');
     }
   </script>
 </body>

@@ -43,8 +43,6 @@ function initSupabase() {
     }
   });
   
-  // 수파베이스 클라이언트 초기화 완료를 콘솔에 출력 (디버깅 용도)
-  console.log('수파베이스 클라이언트 초기화 완료');
   // 생성된 클라이언트 객체를 반환하여 다른 곳에서 사용할 수 있도록 함
   return client;
 }
@@ -65,7 +63,5 @@ document.addEventListener('DOMContentLoaded', function() {
     supabaseInitialized = true;
     // initSupabase 함수를 호출하여 수파베이스 클라이언트 생성
     supabaseClient = initSupabase();
-    // 초기화 완료 메시지를 콘솔에 출력 (디버깅 및 확인 용도)
-    console.log('수파베이스 초기화 완료');
   }
 }); 

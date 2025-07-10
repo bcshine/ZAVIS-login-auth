@@ -10,13 +10,11 @@ const urlsToCache = [
 
 // 설치 이벤트
 self.addEventListener('install', event => {
-  console.log('Service Worker: Installing new version with cache:', CACHE_NAME);
   event.waitUntil(
     // 먼저 모든 기존 캐시 삭제
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
-          console.log('Service Worker: Deleting old cache during install:', cacheName);
           return caches.delete(cacheName);
         })
       );
@@ -24,11 +22,9 @@ self.addEventListener('install', event => {
       // 새 캐시 생성
       return caches.open(CACHE_NAME);
     }).then(cache => {
-      console.log('Service Worker: Caching files in:', CACHE_NAME);
       return cache.addAll(urlsToCache);
     }).then(() => {
       // 즉시 활성화하여 기존 SW를 대체
-      console.log('Service Worker: Skipping waiting');
       return self.skipWaiting();
     })
   );
@@ -36,13 +32,11 @@ self.addEventListener('install', event => {
 
 // 활성화 이벤트 - 이전 캐시 삭제
 self.addEventListener('activate', event => {
-  console.log('Service Worker: Activating new version');
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
           if (cacheName !== CACHE_NAME) {
-            console.log('Service Worker: Deleting old cache', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -85,12 +79,12 @@ self.addEventListener('fetch', event => {
           caches.open(CACHE_NAME)
             .then(cache => {
               // 캐시 저장 중 오류가 발생해도 무시
-              cache.put(request, responseClone).catch(err => {
-                console.log('Cache put error (ignored):', err);
+              cache.put(request, responseClone).catch(() => {
+                // 캐시 저장 오류 무시
               });
             })
-            .catch(err => {
-              console.log('Cache open error (ignored):', err);
+            .catch(() => {
+              // 캐시 오픈 오류 무시
             });
         }
         return response;
