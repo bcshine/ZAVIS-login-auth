@@ -146,6 +146,22 @@
     <script src="auth.js"></script>
     
     <script>
+        // 수파베이스 클라이언트 초기화 대기 함수
+        async function waitForSupabaseClient() {
+            let attempts = 0;
+            const maxAttempts = 30; // 최대 3초 대기 (100ms * 30)
+            
+            while (!supabaseClient && attempts < maxAttempts) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+            
+            if (!supabaseClient) {
+                console.error('수파베이스 클라이언트 초기화 시간 초과');
+                throw new Error('수파베이스 클라이언트 초기화에 실패했습니다.');
+            }
+        }
+        
         // 이메일 인증 확인 처리 함수
         async function handleEmailConfirmation() {
             try {
@@ -155,6 +171,9 @@
                 const type = urlParams.get('type');
                 
                 console.log('이메일 인증 확인 시도:', { token, type });
+                
+                // 수파베이스 클라이언트 초기화 대기
+                await waitForSupabaseClient();
                 
                 // 수파베이스 클라이언트 초기화 확인
                 if (!supabaseClient) {
@@ -325,10 +344,8 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log('이메일 인증 확인 페이지 로드됨');
             
-            // 수파베이스 클라이언트 초기화 대기
-            setTimeout(() => {
-                handleEmailConfirmation();
-            }, 500);
+            // 바로 인증 확인 시작 (함수 내에서 수파베이스 클라이언트 초기화 대기)
+            handleEmailConfirmation();
         });
     </script>
 </body>
