@@ -405,24 +405,10 @@
       // 서비스 워커 안정적 등록
       registerServiceWorker();
       
-      // 모바일 환경에서 안정적인 인증 상태 확인
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      const delay = isMobile ? 500 : 300;  // 모바일: 1초→0.5초, 데스크톱: 0.5초→0.3초로 단축
-      
+      // 안정적인 인증 상태 확인
       setTimeout(() => {
         stableAuthCheck();
-        
-        // 모바일 환경에서 1.5초 후에도 로딩 상태면 강제로 로그인 버튼 표시
-        if (isMobile) {
-          setTimeout(() => {
-            const authLoading = document.getElementById('authLoading');
-            if (authLoading && authLoading.style.display !== 'none') {
-              console.log('모바일 환경: 타임아웃으로 인한 강제 로그인 버튼 표시');
-              showAuthButtons();
-            }
-          }, 1500);  // 5초 → 1.5초로 단축
-        }
-      }, delay);
+      }, 500);
     }
     
     // 페이지 로드시 실행 (두 가지 이벤트 모두 사용)
@@ -433,29 +419,6 @@
     window.addEventListener('load', () => {
       // 이미 초기화가 완료되었다면 건너뛰기
       initializeApp();
-      
-      // 추가 안전장치: 모바일에서 1초 후에도 로딩 상태면 강제로 로그인 버튼 표시
-      setTimeout(() => {
-        const authLoading = document.getElementById('authLoading');
-        if (authLoading && authLoading.style.display !== 'none') {
-          console.log('window.load 이벤트: 추가 안전장치로 로그인 버튼 표시');
-          showAuthButtons();
-        }
-      }, 1000);  // 2초 → 1초로 단축
-    });
-    
-    // 모바일 환경에서 페이지 포커스 시 추가 체크
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) {
-        // 페이지가 다시 보이게 되었을 때 로딩 상태 확인
-        setTimeout(() => {
-          const authLoading = document.getElementById('authLoading');
-          if (authLoading && authLoading.style.display !== 'none') {
-            console.log('페이지 포커스 이벤트: 로딩 상태 제거 및 로그인 버튼 표시');
-            showAuthButtons();
-          }
-        }, 500);  // 1초 → 0.5초로 단축
-      }
     });
     
     // ============================================================================
@@ -513,18 +476,11 @@
           }
         }
         
-        // 2. 수파베이스 클라이언트 대기 (모바일 환경 최적화)
+        // 2. 수파베이스 클라이언트 대기
         // config.js에서 초기화되는 수파베이스 클라이언트가 준비될 때까지 대기
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        const maxRetries = isMobile ? 15 : 8;  // 모바일: 3초, 데스크톱: 1.6초 (로그인 문제 해결을 위해 증가)
-        const retryDelay = isMobile ? 200 : 100;  // 모바일: 200ms, 데스크톱: 100ms
-        
-        console.log(`모바일 환경: ${isMobile}, 최대 재시도: ${maxRetries}회`);
-        
         let retryCount = 0;
-        while (!supabaseClient && retryCount < maxRetries) {
-          console.log(`Supabase 클라이언트 대기 중... (${retryCount + 1}/${maxRetries})`);
-          await new Promise(resolve => setTimeout(resolve, retryDelay));
+        while (!supabaseClient && retryCount < 10) {
+          await new Promise(resolve => setTimeout(resolve, 100));
           retryCount++;
         }
         
@@ -580,15 +536,16 @@
             // 프로필이 없는 경우 생성 시도
             
             // 사용자 메타데이터에서 정보 가져오기
-            const metadata = currentUser.user_metadata || {};
+            const user = sessionData.session.user;
+            const metadata = user.user_metadata || {};
             
             // 새 프로필 생성
             const { data: newProfile, error: createError } = await supabaseClient
               .from('profiles')
               .insert([{
-                user_id: currentUser.id,
-                name: metadata.name || currentUser.email.split('@')[0] || '사용자',
-                email: currentUser.email,
+                user_id: user.id,
+                name: metadata.name || user.email.split('@')[0] || '사용자',
+                email: user.email,
                 phone: metadata.phone || '',
                 visit_count: 1,
                 created_at: new Date().toISOString()
@@ -617,8 +574,8 @@
               console.error('프로필 생성 실패:', createError);
               // 프로필 생성 실패해도 기본 정보로 표시
               const userInfo = {
-                name: currentUser.email.split('@')[0],
-                email: currentUser.email,
+                name: user.email.split('@')[0],
+                email: user.email,
                 visit_count: 1
               };
               showUserInfo(userInfo);
@@ -628,6 +585,9 @@
             console.error('프로필 조회 오류:', profileError);
             showAuthButtons();  // 로그인 버튼 표시
           }
+        } else {
+          // 세션이 없는 경우 로그인 버튼 표시
+          showAuthButtons();
         }
         
       } catch (error) {
@@ -639,17 +599,14 @@
           showAuthButtons();  // 오류 발생 시 로그인 버튼 표시
         }, 100);
       } finally {
-        // 최종적으로 로딩 상태가 남아있다면 제거 (모바일에서 더 오래 대기)
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        const finalTimeout = isMobile ? 2000 : 1200;  // 모바일: 2초, 데스크톱: 1.2초
-        
+        // 최종적으로 로딩 상태가 남아있다면 제거
         setTimeout(() => {
           const authLoading = document.getElementById('authLoading');
           if (authLoading && authLoading.style.display !== 'none') {
             console.log('최종 안전장치: 로딩 상태 제거 및 로그인 버튼 표시');
             showAuthButtons();
           }
-        }, finalTimeout);
+        }, 3000);
       }
     }
     
@@ -755,8 +712,8 @@
            }
          }
         
-        // 3. 로그인되지 않은 경우 안내 메시지 표시 (브라우저별 로그인 안내 포함)
-        alert('🔐 로그인이 필요한 서비스입니다!\n\n아래 로그인 버튼을 클릭하여 먼저 로그인해주세요.\n\n📱 참고: 카카오톡, 크롬, 사파리 등 각 브라우저별로 별도 로그인이 필요합니다.\n\n로그인 후 ZAVIS의 모든 기능을 이용하실 수 있습니다.');
+        // 3. 로그인되지 않은 경우 안내 메시지 표시
+        alert('🔐 로그인이 필요한 서비스입니다!\n\n아래 로그인 버튼을 클릭하여 먼저 로그인해주세요.\n\n로그인 후 ZAVIS의 모든 기능을 이용하실 수 있습니다.');
         
         // 로그인 버튼으로 시선 유도 (선택사항)
         const authButtons = document.getElementById('authButtons');

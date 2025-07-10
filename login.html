@@ -169,12 +169,6 @@
     <h1 class="title">ZAVIS</h1>
     <p class="subtitle">로그인</p>
     
-    <!-- 브라우저별 로그인 안내 메시지 -->
-    <div style="background: rgba(255,255,255,0.6); padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 0.85rem; color: #666; text-align: center; line-height: 1.4;">
-      📱 각 브라우저별로 별도 로그인이 필요합니다<br>
-      (카카오톡, 크롬, 사파리 등)
-    </div>
-    
     <form id="loginForm" class="form">
       <div class="form-group">
         <label class="form-label" for="email">이메일</label>
@@ -302,26 +296,19 @@
       // 페이지 로드 완료를 콘솔에 출력 (디버깅 용도)
       console.log('페이지 로드 완료');
       
-      // 모바일 환경 감지
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      console.log('모바일 환경:', isMobile);
-      
-      // 수파베이스 클라이언트 초기화 대기 (모바일에서 더 오래 대기)
+      // 수파베이스 클라이언트 초기화 대기
       // config.js에서 초기화되는 수파베이스 클라이언트가 준비될 때까지 대기
-      const maxWaitCount = isMobile ? 25 : 10;  // 모바일: 5초, 데스크톱: 2초
-      const waitDelay = 200;
       let waitCount = 0;
-      
-      while (!supabaseClient && waitCount < maxWaitCount) {
-        console.log(`수파베이스 클라이언트 초기화 대기... (${waitCount + 1}/${maxWaitCount})`);
-        await new Promise(resolve => setTimeout(resolve, waitDelay));
+      while (!supabaseClient && waitCount < 10) {
+        console.log('수파베이스 클라이언트 초기화 대기...');
+        await new Promise(resolve => setTimeout(resolve, 200));  // 200ms 대기
         waitCount++;
       }
       
       // 수파베이스 클라이언트 초기화 실패 시 처리
       if (!supabaseClient) {
         console.error('수파베이스 클라이언트 초기화 실패');
-        alert('시스템 초기화에 실패했습니다.\n\n모바일에서는 네트워크 상태를 확인하고 페이지를 새로고침해주세요.');
+        alert('시스템 초기화에 실패했습니다. 페이지를 새로고침해주세요.');
         return; // 함수 종료
       }
       
@@ -336,14 +323,7 @@
         if (userData && userData.user) {
           // 이미 로그인되어 있는 경우 알림 표시 후 메인 페이지로 이동
           alert('이미 로그인되어 있습니다.');
-          
-          // 모바일에서 더 안정적인 페이지 이동
-          if (isMobile) {
-            // 모바일에서는 현재 창에서 이동
-            window.location.replace('index.html');
-          } else {
-            window.location.href = 'index.html';
-          }
+          window.location.href = 'index.html';
         }
       } catch (error) {
         // 로그인 상태 확인 중 오류 발생 시 처리

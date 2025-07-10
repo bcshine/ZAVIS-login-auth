@@ -48,36 +48,17 @@ self.addEventListener('activate', event => {
   );
 });
 
-// fetch 이벤트 - 네트워크 우선 전략으로 변경 (개선된 오류 처리)
+// fetch 이벤트 - 네트워크 우선 전략으로 변경
 self.addEventListener('fetch', event => {
-  // 캐시할 수 없는 요청들을 필터링
-  const request = event.request;
-  
-  // POST, PUT, DELETE 등의 요청이나 외부 API 호출은 캐시하지 않음
-  if (request.method !== 'GET' || 
-      request.url.includes('supabase.co') ||
-      request.url.includes('api.') ||
-      request.url.startsWith('chrome-extension://') ||
-      request.url.startsWith('data:')) {
-    // 네트워크 요청만 처리하고 캐시하지 않음
-    event.respondWith(
-      fetch(request).catch(() => {
-        // 네트워크 실패시 기본 응답 반환
-        return new Response('Network Error', { status: 408 });
-      })
-    );
-    return;
-  }
-  
-  // GET 요청만 캐시 처리
   event.respondWith(
-    fetch(request)
+    fetch(event.request)
       .then(response => {
-        // 네트워크 요청 성공시 캐시 업데이트 (GET 요청이고 성공적인 응답만)
-        if (response.status === 200 && request.method === 'GET') {
+        // 네트워크 요청 성공시 캐시 업데이트
+        if (response.status === 200) {
           const responseClone = response.clone();
           caches.open(CACHE_NAME)
             .then(cache => {
+<<<<<<< HEAD
               // 캐시 저장 중 오류가 발생해도 무시
               cache.put(request, responseClone).catch(() => {
                 // 캐시 저장 오류 무시
@@ -85,13 +66,16 @@ self.addEventListener('fetch', event => {
             })
             .catch(() => {
               // 캐시 오픈 오류 무시
+=======
+              cache.put(event.request, responseClone);
+>>>>>>> parent of fde27f3 (수정)
             });
         }
         return response;
       })
       .catch(() => {
         // 네트워크 실패시에만 캐시에서 반환
-        return caches.match(request);
+        return caches.match(event.request);
       })
   );
 }); 
