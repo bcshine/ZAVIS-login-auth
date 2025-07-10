@@ -224,11 +224,21 @@ async function signIn(email, password) {
       console.error('로컬 스토리지 저장 오류:', storageError);
     }
     
+    // 모바일 환경 감지
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
     // 로그인 성공 메시지 표시
     alert('🎉 로그인 성공!\n\n환영합니다! ZAVIS와 함께 성공적인 비즈니스를 시작해보세요.');
     
-    // 메인 페이지로 리디렉션 (페이지 이동)
-    window.location.href = 'index.html';
+    // 메인 페이지로 리디렉션 (모바일에서 더 안정적인 방식 사용)
+    if (isMobile) {
+      // 모바일에서는 replace 사용하여 뒤로가기 방지
+      setTimeout(() => {
+        window.location.replace('index.html');
+      }, 500);  // 0.5초 후 이동 (모바일에서 세션 저장 시간 확보)
+    } else {
+      window.location.href = 'index.html';
+    }
     
     // 로그인 성공 결과 반환
     return { success: true, user: authData.user };
