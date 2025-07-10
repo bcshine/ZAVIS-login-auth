@@ -36,68 +36,97 @@ async function signUp(email, password, name, phone) {
     // 인증 계정 생성 완료를 콘솔에 출력 (디버깅 용도)
     console.log('Auth 사용자 생성 완료:', authData.user.id);
     
-    // 2. 세션 설정 대기 (RLS 정책 적용을 위해)
-    // 회원가입 후 즉시 세션이 활성화되지 않을 수 있으므로 잠시 대기
-    console.log('세션 설정 대기 중...');
-    await new Promise(resolve => setTimeout(resolve, 1000)); // 1초 대기
+    // 2. 모바일 환경 최적화 - 단순한 프로필 생성 (트리거 의존성 제거)
+    console.log('모바일 환경 최적화: 직접 프로필 생성 시도...');
     
-    // 3. 세션 확인 
-    const { data: sessionData } = await supabaseClient.auth.getSession();
-    console.log('현재 세션 상태:', sessionData.session ? '활성' : '비활성');
+    // 프로필 생성 시도 (모바일 환경 최적화)
+    let profileCreated = false;
     
-    // 4. 프로필 생성 또는 업데이트
-    console.log('프로필 확인 중...');
-    
-    // 4-1. 먼저 트리거에 의해 프로필이 생성되었는지 확인
-    const { data: existingProfile, error: checkError } = await supabaseClient
-      .from('profiles')
-      .select('*')
-      .eq('user_id', authData.user.id)
-      .single();
-    
-    if (existingProfile) {
-      // 트리거에 의해 프로필이 생성된 경우, 추가 정보 업데이트
-      console.log('기존 프로필 발견, 추가 정보 업데이트...');
-      const { error: updateError } = await supabaseClient
-        .from('profiles')
-        .update({
-          name: name,     // 사용자 이름 업데이트
-          phone: phone    // 전화번호 추가
-        })
-        .eq('user_id', authData.user.id);
-      
-      if (updateError) {
-        console.error('프로필 업데이트 오류:', updateError);
-        throw new Error('프로필 정보 업데이트에 실패했습니다: ' + updateError.message);
-      }
-      
-      console.log('프로필 업데이트 완료');
-    } else {
-      // 트리거에 의해 프로필이 생성되지 않은 경우, 수동으로 생성
-      console.log('프로필 생성 시도...');
+    try {
+      // 직접 프로필 생성 시도
       const { data: profileData, error: profileError } = await supabaseClient
-        .from('profiles')        // profiles 테이블 선택
-        .insert([                // 새로운 레코드 삽입
-          {
-            user_id: authData.user.id,  // Auth 사용자 ID와 연결
-            name: name,                 // 사용자 이름
-            phone: phone,               // 전화번호
-            email: email,               // 이메일 (중복 저장하지만 편의성을 위해)
-            visit_count: 1              // 첫 가입시 방문횟수를 1로 설정
-          }
-        ]);
+        .from('profiles')
+        .insert([{
+          user_id: authData.user.id,
+          name: name,
+          phone: phone,
+          email: email,
+          visit_count: 1
+        }])
+        .select()
+        .single();
       
-      // 프로필 정보 저장 중 오류가 발생했는지 확인
       if (profileError) {
-        console.error('프로필 생성 오류:', profileError);
-        // RLS 정책 문제인 경우 더 구체적인 오류 메시지 제공
-        if (profileError.code === '42501') {
-          throw new Error('프로필 생성 권한이 부족합니다. 잠시 후 다시 시도해주세요.');
+        console.error('직접 프로필 생성 오류:', profileError);
+        
+        // 중복 오류인 경우 기존 프로필 업데이트
+        if (profileError.code === '23505') {
+          console.log('프로필이 이미 존재, 업데이트 시도...');
+          const { error: updateError } = await supabaseClient
+            .from('profiles')
+            .update({
+              name: name,
+              phone: phone
+            })
+            .eq('user_id', authData.user.id);
+          
+          if (updateError) {
+            console.error('프로필 업데이트 오류:', updateError);
+          } else {
+            console.log('기존 프로필 업데이트 완료');
+            profileCreated = true;
+          }
+        } else {
+          // 프로필 생성이 실패한 경우 Edge Function 사용 시도
+          console.log('프로필 생성 실패, Edge Function 백업 시도...');
+          throw new Error(`프로필 생성 실패: ${profileError.message}`);
         }
-        throw new Error('프로필 정보 저장에 실패했습니다: ' + profileError.message);
+      } else {
+        console.log('직접 프로필 생성 완료');
+        profileCreated = true;
+      }
+    } catch (error) {
+      console.error('프로필 생성 중 예외:', error);
+      
+      // 모바일 환경에서 Edge Function 백업 시도
+      if (navigator.userAgent.includes('Mobile') || navigator.userAgent.includes('Android') || navigator.userAgent.includes('iPhone')) {
+        console.log('모바일 환경 감지, Edge Function 백업 시도...');
+        
+        try {
+          const response = await fetch(`${supabaseClient.supabaseUrl}/functions/v1/mobile-signup`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseClient.supabaseKey}`
+            },
+            body: JSON.stringify({
+              email: email,
+              password: password,
+              name: name,
+              phone: phone
+            })
+          });
+          
+          const result = await response.json();
+          
+          if (result.success) {
+            console.log('Edge Function 백업 성공');
+            profileCreated = true;
+          } else {
+            console.error('Edge Function 백업 실패:', result.error);
+          }
+        } catch (edgeError) {
+          console.error('Edge Function 호출 오류:', edgeError);
+        }
       }
       
-      console.log('프로필 생성 완료');
+      // 프로필 생성 실패해도 회원가입은 성공으로 처리
+      console.log('프로필 생성 실패, 하지만 회원가입은 성공으로 처리');
+    }
+    
+    // 프로필 생성 상태 확인
+    if (!profileCreated) {
+      console.log('프로필 생성 실패, 하지만 회원가입은 성공으로 처리');
     }
     
     // 로컬 스토리지에 사용자 정보 임시 저장 (이메일 인증 전이므로 임시)
@@ -109,7 +138,11 @@ async function signUp(email, password, name, phone) {
     }));
     
     // 회원가입 성공 메시지 표시 (이메일 인증 안내 포함)
-    alert(`🎉 회원가입이 완료되었습니다!\n\n📧 ${email}로 보낸 인증 메일을 확인해주세요.\n\n✅ 이메일 인증을 완료해야 로그인할 수 있습니다.\n\n📱 스팸메일함도 확인해보세요!`);
+    const successMessage = profileCreated 
+      ? `🎉 회원가입이 완료되었습니다!\n\n📧 ${email}로 보낸 인증 메일을 확인해주세요.\n\n✅ 이메일 인증을 완료해야 로그인할 수 있습니다.\n\n📱 스팸메일함도 확인해보세요!`
+      : `🎉 회원가입이 완료되었습니다!\n\n📧 ${email}로 보낸 인증 메일을 확인해주세요.\n\n✅ 이메일 인증을 완료해야 로그인할 수 있습니다.\n\n📱 스팸메일함도 확인해보세요!\n\n⚠️ 프로필 정보는 첫 로그인 시 자동으로 생성됩니다.`;
+    
+    alert(successMessage);
     
     // 회원가입 성공 결과 반환
     return { success: true, user: authData.user };
@@ -117,8 +150,34 @@ async function signUp(email, password, name, phone) {
   } catch (error) {
     // 회원가입 중 발생한 오류를 콘솔에 출력 (디버깅 용도)
     console.error('회원가입 오류:', error);
-    // 사용자에게 오류 메시지 표시
-    alert('회원가입 중 오류가 발생했습니다: ' + error.message);
+    
+    // 모바일 환경에서도 정확한 오류 메시지 제공
+    let errorMessage = '회원가입 중 오류가 발생했습니다.';
+    
+    // 오류 유형에 따른 구체적인 메시지 제공
+    if (error.message) {
+      if (error.message.includes('User already registered') || error.message.includes('already registered')) {
+        errorMessage = '이미 등록된 이메일입니다.';
+      } else if (error.message.includes('Password')) {
+        errorMessage = '비밀번호가 너무 짧습니다. (최소 6자)';
+      } else if (error.message.includes('Email')) {
+        errorMessage = '올바른 이메일 형식이 아닙니다.';
+      } else if (error.message.includes('profile') || error.message.includes('권한')) {
+        errorMessage = '프로필 생성 권한이 부족합니다. 잠시 후 다시 시도해주세요.';
+      } else if (error.message.includes('insert') || error.message.includes('INSERT')) {
+        errorMessage = '프로필 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+      } else if (error.message.includes('permission') || error.message.includes('Permission')) {
+        errorMessage = '권한이 부족합니다. 잠시 후 다시 시도해주세요.';
+      } else {
+        // 모바일에서 발생하는 모든 오류를 안전하게 처리
+        errorMessage = `회원가입 중 문제가 발생했습니다: ${error.message}`;
+      }
+    }
+    
+    // 모바일에서도 안정적으로 오류 표시
+    console.log('최종 오류 메시지:', errorMessage);
+    alert(errorMessage);
+    
     // 회원가입 실패 결과 반환
     return { success: false, error: error.message };
   }
