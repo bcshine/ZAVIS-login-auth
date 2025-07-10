@@ -54,14 +54,21 @@ let supabaseClient = null;
 // 중복 초기화를 방지하기 위해 사용
 let supabaseInitialized = false;
 
-// 페이지 로드 시 수파베이스 초기화 (한 번만 실행)
-// DOMContentLoaded 이벤트는 HTML 문서가 완전히 로드되고 파싱된 후에 발생
-document.addEventListener('DOMContentLoaded', function() {
+// 수파베이스 초기화 함수 (중복 실행 방지)
+function initializeSupabase() {
   // 이미 초기화되었는지 확인하여 중복 초기화 방지
   if (!supabaseInitialized) {
     // 초기화 플래그를 true로 설정하여 다시 초기화되지 않도록 함
     supabaseInitialized = true;
     // initSupabase 함수를 호출하여 수파베이스 클라이언트 생성
     supabaseClient = initSupabase();
+    console.log('수파베이스 클라이언트 초기화 완료');
   }
-}); 
+}
+
+// 페이지 로드 시 수파베이스 초기화 (모바일 환경 최적화)
+// DOMContentLoaded 이벤트는 HTML 문서가 완전히 로드되고 파싱된 후에 발생
+document.addEventListener('DOMContentLoaded', initializeSupabase);
+
+// 모바일 환경에서 추가 안전장치 - window.load 이벤트에서도 초기화 확인
+window.addEventListener('load', initializeSupabase); 

@@ -384,25 +384,78 @@
     // 페이지 초기화 및 이벤트 리스너
     // ============================================================================
     
-    // 페이지 로드시 실행
-    // 윈도우 객체의 load 이벤트는 모든 리소스가 로드 완료된 후에 발생
-    window.addEventListener('load', () => {
-      // 버전 체크용 로컬스토리지
-      // 앱 버전을 확인하여 필요시 업데이트 (깜빡거림 방지)
-      const currentVersion = '2.1';                                    // 현재 앱 버전
-      const storedVersion = localStorage.getItem('zavis-version');     // 저장된 버전 가져오기
+    // 초기화 중복 방지 플래그
+    let isInitialized = false;
+    
+    // 초기화 함수 (중복 실행 방지)
+    function initializeApp() {
+      if (isInitialized) return;
+      isInitialized = true;
       
-      // 버전이 다른 경우에만 버전 업데이트 (강제 새로고침 안 함)
+      console.log('앱 초기화 시작');
+      
+      // 버전 체크용 로컬스토리지
+      const currentVersion = '2.1';
+      const storedVersion = localStorage.getItem('zavis-version');
+      
       if (storedVersion !== currentVersion) {
-        localStorage.setItem('zavis-version', currentVersion);         // 새 버전 저장
+        localStorage.setItem('zavis-version', currentVersion);
       }
       
-      // 서비스 워커 안정적 등록 (깜빡거림 방지)
+      // 서비스 워커 안정적 등록
       registerServiceWorker();
       
-      // 안정적인 인증 상태 확인 (로그인 문제 해결)
-      // 500ms 후에 인증 확인 함수 실행 (초기화 시간 확보하되 빠르게)
-      setTimeout(stableAuthCheck, 500);
+      // 모바일 환경에서 안정적인 인증 상태 확인
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const delay = isMobile ? 1000 : 500;
+      
+      setTimeout(() => {
+        stableAuthCheck();
+        
+        // 모바일 환경에서 5초 후에도 로딩 상태면 강제로 로그인 버튼 표시
+        if (isMobile) {
+          setTimeout(() => {
+            const authLoading = document.getElementById('authLoading');
+            if (authLoading && authLoading.style.display !== 'none') {
+              console.log('모바일 환경: 타임아웃으로 인한 강제 로그인 버튼 표시');
+              showAuthButtons();
+            }
+          }, 5000);
+        }
+      }, delay);
+    }
+    
+    // 페이지 로드시 실행 (두 가지 이벤트 모두 사용)
+    // DOM 로드 완료 시 (모바일 환경에서 더 빠른 초기화)
+    document.addEventListener('DOMContentLoaded', initializeApp);
+    
+    // 모든 리소스 로드 완료 시 (백업용)
+    window.addEventListener('load', () => {
+      // 이미 초기화가 완료되었다면 건너뛰기
+      initializeApp();
+      
+      // 추가 안전장치: 모바일에서 2초 후에도 로딩 상태면 강제로 로그인 버튼 표시
+      setTimeout(() => {
+        const authLoading = document.getElementById('authLoading');
+        if (authLoading && authLoading.style.display !== 'none') {
+          console.log('window.load 이벤트: 추가 안전장치로 로그인 버튼 표시');
+          showAuthButtons();
+        }
+      }, 2000);
+    });
+    
+    // 모바일 환경에서 페이지 포커스 시 추가 체크
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        // 페이지가 다시 보이게 되었을 때 로딩 상태 확인
+        setTimeout(() => {
+          const authLoading = document.getElementById('authLoading');
+          if (authLoading && authLoading.style.display !== 'none') {
+            console.log('페이지 포커스 이벤트: 로딩 상태 제거 및 로그인 버튼 표시');
+            showAuthButtons();
+          }
+        }, 1000);
+      }
     });
     
     // ============================================================================
@@ -460,16 +513,21 @@
           }
         }
         
-        // 2. 수파베이스 클라이언트 대기 (최적화된 대기 시간)
+        // 2. 수파베이스 클라이언트 대기 (모바일 환경 최적화)
         // config.js에서 초기화되는 수파베이스 클라이언트가 준비될 때까지 대기
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const maxRetries = isMobile ? 10 : 5;  // 모바일에서는 더 많이 시도
+        const retryDelay = isMobile ? 200 : 100;  // 모바일에서는 더 오래 대기
+        
         let retryCount = 0;
-        while (!supabaseClient && retryCount < 5) {
-          await new Promise(resolve => setTimeout(resolve, 100));  // 100ms 대기로 단축
+        while (!supabaseClient && retryCount < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
           retryCount++;
         }
         
         // 수파베이스 클라이언트 초기화 실패 시 로그인 버튼 표시
         if (!supabaseClient) {
+          console.log('수파베이스 클라이언트 초기화 실패 - 로그인 버튼 표시');
           showAuthButtons();
           return;
         }
@@ -576,7 +634,20 @@
       } catch (error) {
         // 인증 확인 과정에서 발생한 오류를 콘솔에 출력
         console.error('인증 확인 오류:', error);
-        showAuthButtons();  // 오류 발생 시 로그인 버튼 표시
+        
+        // 모바일 환경에서 확실히 로그인 버튼 표시
+        setTimeout(() => {
+          showAuthButtons();  // 오류 발생 시 로그인 버튼 표시
+        }, 100);
+      } finally {
+        // 최종적으로 로딩 상태가 남아있다면 제거
+        setTimeout(() => {
+          const authLoading = document.getElementById('authLoading');
+          if (authLoading && authLoading.style.display !== 'none') {
+            console.log('최종 안전장치: 로딩 상태 제거 및 로그인 버튼 표시');
+            showAuthButtons();
+          }
+        }, 3000);  // 3초 후 최종 체크
       }
     }
     
@@ -592,14 +663,28 @@
       const authButtons = document.getElementById('authButtons');   // 로그인/회원가입 버튼 그룹
       const userInfo = document.getElementById('userInfo');         // 사용자 정보 표시 요소
       
-      // 로딩 화면 숨기기
-      if (authLoading) authLoading.style.display = 'none';
-      // 로그인/회원가입 버튼 표시
-      if (authButtons) authButtons.style.display = 'flex';
-      // 사용자 정보 영역 숨기기
-      if (userInfo) userInfo.style.display = 'none';
-      
-      // 로그인 버튼 표시 완료
+      // 모바일 환경에서 더 확실하게 UI 업데이트
+      requestAnimationFrame(() => {
+        // 로딩 화면 숨기기
+        if (authLoading) {
+          authLoading.style.display = 'none';
+          authLoading.style.visibility = 'hidden';
+        }
+        
+        // 로그인/회원가입 버튼 표시
+        if (authButtons) {
+          authButtons.style.display = 'flex';
+          authButtons.style.visibility = 'visible';
+        }
+        
+        // 사용자 정보 영역 숨기기
+        if (userInfo) {
+          userInfo.style.display = 'none';
+          userInfo.style.visibility = 'hidden';
+        }
+        
+        console.log('로그인 버튼 표시 완료');
+      });
     }
     
     // 사용자 정보 표시 함수
@@ -612,19 +697,33 @@
       const userName = document.getElementById('userName');         // 사용자 이름 표시 요소
       const userStats = document.getElementById('userStats');       // 방문횟수 표시 요소
       
-      // 로딩 화면 숨기기
-      if (authLoading) authLoading.style.display = 'none';
-      // 로그인/회원가입 버튼 숨기기
-      if (authButtons) authButtons.style.display = 'none';
-      // 사용자 정보 영역 표시
-      if (userInfo) userInfo.style.display = 'block';
-      
-      // 사용자 이름 표시 (이름이 없으면 이메일 표시)
-      if (userName) userName.textContent = profile.name || profile.email;
-      // 방문횟수 표시 (없으면 0회로 표시)
-      if (userStats) userStats.textContent = `방문횟수: ${profile.visit_count || 0}회`;
-      
-      // 사용자 정보 표시 완료
+      // 모바일 환경에서 더 확실하게 UI 업데이트
+      requestAnimationFrame(() => {
+        // 로딩 화면 숨기기
+        if (authLoading) {
+          authLoading.style.display = 'none';
+          authLoading.style.visibility = 'hidden';
+        }
+        
+        // 로그인/회원가입 버튼 숨기기
+        if (authButtons) {
+          authButtons.style.display = 'none';
+          authButtons.style.visibility = 'hidden';
+        }
+        
+        // 사용자 정보 영역 표시
+        if (userInfo) {
+          userInfo.style.display = 'block';
+          userInfo.style.visibility = 'visible';
+        }
+        
+        // 사용자 이름 표시 (이름이 없으면 이메일 표시)
+        if (userName) userName.textContent = profile.name || profile.email;
+        // 방문횟수 표시 (없으면 0회로 표시)
+        if (userStats) userStats.textContent = `방문횟수: ${profile.visit_count || 0}회`;
+        
+        console.log('사용자 정보 표시 완료');
+      });
     }
     
     // ============================================================================
