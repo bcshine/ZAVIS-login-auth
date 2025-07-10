@@ -538,48 +538,24 @@
         // 3. 수파베이스에서 현재 로그인된 사용자 정보 확인
         // 로컬 스토리지에 정보가 없거나 수파베이스 세션 확인이 필요한 경우
         
-        console.log('Supabase 세션 확인 중...');
+        // getSession 함수로 현재 세션 정보 가져오기
+        const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
         
-        // 모바일에서 더 안정적인 세션 확인을 위해 두 가지 방법을 모두 시도
-        let currentUser = null;
-        let sessionData = null;
-        
-        try {
-          // 1차: getSession으로 세션 정보 확인
-          const sessionResult = await supabaseClient.auth.getSession();
-          if (!sessionResult.error && sessionResult.data.session) {
-            sessionData = sessionResult.data;
-            currentUser = sessionResult.data.session.user;
-            console.log('getSession으로 사용자 확인됨:', currentUser?.email);
-          }
-          
-          // 2차: getUser로 현재 사용자 확인 (모바일에서 세션이 없어도 사용자가 있을 수 있음)
-          if (!currentUser) {
-            const userResult = await supabaseClient.auth.getUser();
-            if (!userResult.error && userResult.data.user) {
-              currentUser = userResult.data.user;
-              console.log('getUser로 사용자 확인됨:', currentUser?.email);
-            }
-          }
-        } catch (error) {
-          console.error('인증 확인 중 오류:', error);
-        }
-        
-        // 세션이나 사용자 정보가 없는 경우 로그인 버튼 표시
-        if (!currentUser) {
-          console.log('로그인된 사용자가 없습니다.');
-          showAuthButtons();
-          return;
+        // 세션 오류 발생 시 로그 출력
+        if (sessionError) {
+          console.error('세션 확인 오류:', sessionError);
+          showAuthButtons();  // 로그인 버튼 표시
+          return;            // 함수 종료
         }
         
         // 세션이 있고 사용자 정보가 있는 경우
-        if (currentUser) {
+        if (sessionData.session && sessionData.session.user) {
           
           // 프로필 정보 가져오기
           const { data: profileData, error: profileError } = await supabaseClient
             .from('profiles')                               // profiles 테이블에서
             .select('*')                                   // 모든 컬럼 선택
-            .eq('user_id', currentUser.id)                  // 현재 사용자의 프로필
+            .eq('user_id', sessionData.session.user.id)    // 현재 사용자의 프로필
             .single();                                     // 단일 레코드 반환
           
           if (profileData) {
@@ -779,8 +755,8 @@
            }
          }
         
-        // 3. 로그인되지 않은 경우 안내 메시지 표시
-        alert('🔐 로그인이 필요한 서비스입니다!\n\n아래 로그인 버튼을 클릭하여 먼저 로그인해주세요.\n\n로그인 후 ZAVIS의 모든 기능을 이용하실 수 있습니다.');
+        // 3. 로그인되지 않은 경우 안내 메시지 표시 (브라우저별 로그인 안내 포함)
+        alert('🔐 로그인이 필요한 서비스입니다!\n\n아래 로그인 버튼을 클릭하여 먼저 로그인해주세요.\n\n📱 참고: 카카오톡, 크롬, 사파리 등 각 브라우저별로 별도 로그인이 필요합니다.\n\n로그인 후 ZAVIS의 모든 기능을 이용하실 수 있습니다.');
         
         // 로그인 버튼으로 시선 유도 (선택사항)
         const authButtons = document.getElementById('authButtons');
